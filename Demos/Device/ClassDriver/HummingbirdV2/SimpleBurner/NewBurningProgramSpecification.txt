@@ -1,0 +1,20 @@
+An executable Java program that does the following:
+
+* Lists COM ports and allows user to select the Arduino port
+* When burning, first does the automated software reset by opening/closing the port at 1200 baud
+* Then launches a batch/sh file that burns the original bootloader
+
+Also option for reset-driven upgrade which:
+
+* Asks user to press reset once, then enumerates ports to determine the correct port
+* Then asks user to press reset again to burn
+
+
+Software reset:
+"Automatic (Software) Reset and Bootloader Initiation
+
+Rather than requiring a physical press of the reset button before an upload, the Leonardo is designed in a way that allows it to be reset by software running on a connected computer. The reset is triggered when the Leonardo's virtual (CDC) serial / COM port is opened at 1200 baud and then closed. When this happens, the processor will reset, breaking the USB connection to the computer (meaning that the virtual serial / COM port will disappear). After the processor resets, the bootloader starts, remaining active for about 8 seconds. The bootloader can also be initiated by pressing the reset button on the Leonardo. Note that when the board first powers up, it will jump straight to the user sketch, if present, rather than initiating the bootloader.
+Because of the way the Leonardo handles reset it's best to let the Arduino software try to initiate the reset before uploading, especially if you are in the habit of pressing the reset button before uploading on other boards. If the software can't reset the board you can always start the bootloader by pressing the reset button on the board."
+
+
+

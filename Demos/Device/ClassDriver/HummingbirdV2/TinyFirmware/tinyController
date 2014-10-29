@@ -1,0 +1,48 @@
+	#include <inttypes.h>
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <util/delay.h>
+	#include <avr/io.h>
+	#include <avr/interrupt.h>
+	#include <util/twi.h>
+	#include <avr/wdt.h>
+	#include <avr/power.h>
+	#include <string.h>
+	
+	void main()
+	{
+		init_spi();
+		init_servos();
+		init_vbr();
+		
+		// init global interrupts
+		sei();
+		
+		while(1);
+	
+	}
+	
+	void init_spi()
+	{
+		// Enable the counter interrupt, and 3-wire mode, use external clocking and sample on leading edge
+		USICR = _BV(USIOIE) | _BV(USIWM0) | _BV(USICS1);
+	
+	}
+	
+	void init_servos()
+	{
+		// set servo pins to output
+		DDRA |= _BV(PA0) | _BV(PA1) | _BV(PA2) | _BV(PA3);
+	
+	}
+	
+	void init_vbr()
+	{
+		// set vibration motor pins to output
+		DDRA |= _BV(PA7);
+		DDRB |= _BV(PB2);
+		// Set to non-inverting fast PWM mode
+		TCCR0A = _BV(COM0A1) | _BV(COM0B1) | _BV(WGM01) | (WGM00);
+		// Use the built-in 8 MHz oscillator for clocking
+		TCCR0B = _BV(CS00);
+	}
