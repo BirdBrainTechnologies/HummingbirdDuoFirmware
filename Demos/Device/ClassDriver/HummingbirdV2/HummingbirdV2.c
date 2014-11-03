@@ -76,7 +76,7 @@ USB_ClassInfo_HID_Device_t Generic_HID_Interface =
 
 #define MAJOR_FIRMWARE_VERSION 0x02
 #define MINOR_FIRMWARE_VERSION 0x01
-#define MINOR_FIRMWARE_VERSION2 'g'
+#define MINOR_FIRMWARE_VERSION2 'h'
 
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
@@ -103,12 +103,13 @@ int main(void)
 		USB_USBTask();
 
 		// If we reach an idle timer count of 500,000 (in USB mode) or 5 million (in serial mode), ~5 (or 50) seconds has elapsed and we turn everything off and go back to idle mode
-		if(exit_count >= max_count) {
+		if(exit_count == max_count && exit_count <= max_count+5) {
 			turn_off_motors();
 			turn_off_leds();
 			disable_servos();
 			disable_vibration_motors();
 			activity_state = 0; // Idle mode flag
+			exit_count++;
 		}
 		// Otherwise count up!
 		else if(exit_count < max_count) {
@@ -455,7 +456,10 @@ int main(void)
 			if(usb_data == 1) {
 				// Reset idle mode
 				if(HIDReportEcho.ReportData[0] == 'R')
+				{
 					activity_state = 0;
+					exit_count = max_count+5;
+				}
 				else
 					activity_state = 1;
 				HIDReportEcho.ReportData[0] = 0x00;
