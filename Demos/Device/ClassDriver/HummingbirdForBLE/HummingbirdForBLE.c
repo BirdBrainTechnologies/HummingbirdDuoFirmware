@@ -75,8 +75,8 @@ USB_ClassInfo_HID_Device_t Generic_HID_Interface =
 	};
 
 #define MAJOR_FIRMWARE_VERSION 0x02
-#define MINOR_FIRMWARE_VERSION 0x01
-#define MINOR_FIRMWARE_VERSION2 'i'
+#define MINOR_FIRMWARE_VERSION 0x02
+#define MINOR_FIRMWARE_VERSION2 'b'
 
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
@@ -84,7 +84,7 @@ USB_ClassInfo_HID_Device_t Generic_HID_Interface =
 int main(void)
 {
 	int count = 0; // Counter variable
-	char serial_data[8]; // Buffer to hold serial commands send over TTL serial port
+	char serial_data[20]; // Buffer to hold serial commands send over TTL serial port
 
 	// Counter to set a time-out after which Hummingbird reverts to idle state (indicated by status LED fading on and off)
 	unsigned long int exit_count = 0;
@@ -95,6 +95,8 @@ int main(void)
 	SetupHardware();
 
 	GlobalInterruptEnable();
+	_delay_ms(250); // wait for BLE module to wake up
+	init_BLE_name();
 
 	for (;;)
 	{
@@ -127,7 +129,50 @@ int main(void)
 		{
 			max_count = 5000000; // Set the time out to 5,000,000, so now we time out in 50 seconds instead of 5
 			serial_data[0] = receive_char();
+			
+			
+			
 			switch(serial_data[0]) {
+				// If A, set ALL outputs using 18 bytes of serial data
+				case 'A':
+				activity_state=1;
+				for(int t = 1; t < 19; t++)
+				{
+					timeout = 0;
+					// Wait up to 500ms for the next byte
+					while(!received_data_available() && timeout < 250) {
+						_delay_ms(2);
+						timeout++;
+					}
+					if(timeout >= 250)
+						break;
+					serial_data[t] = receive_char();
+				}
+				if(timeout < 250) {
+					set_orb('0', serial_data[1], serial_data[2], serial_data[3]);
+					set_orb('1', serial_data[4], serial_data[5], serial_data[6]);
+					set_led('0', serial_data[7]);
+					set_led('1', serial_data[8]);
+					set_led('2', serial_data[9]);
+					set_led('3', serial_data[10]);
+					set_servo(0, serial_data[11]);
+					set_servo(1, serial_data[12]);
+					set_servo(2, serial_data[13]);
+					set_servo(3, serial_data[14]);
+					set_vibration_motor('0', serial_data[15]);
+					set_vibration_motor('1', serial_data[16]);
+					if(serial_data[17] < 128)
+						set_motor(0, 0, serial_data[17]*2);
+					else
+						set_motor(0, 1, (serial_data[17]-128)*2);
+					if(serial_data[18] < 128)
+						set_motor(1, 0, serial_data[18]*2);
+					else
+						set_motor(1, 1, (serial_data[18]-128)*2);
+					
+					exit_count = 0;  // Reset time-out counter
+				}
+				break;
 				// If O, set an RGB LED using 4 bytes of serial data
 				case 'O':
 				activity_state=1;
@@ -290,12 +335,12 @@ int main(void)
 				{
 					serial_data[1] = receive_char();
 					if(serial_data[1] == '0') {
-						for(int i = 0; i < 7; i++) {
+						for(int i = 0; i < 6; i++) {
 							send_char(led_values_temp[i]);
 						}
 					}
 					else if(serial_data[1] == '1') {
-						for(int i = 7; i < 10; i++) {
+						for(int i = 6; i < 10; i++) {
 							send_char(led_values_temp[i]);
 						}
 						for(int i = 0; i < 4; i++) {
@@ -335,8 +380,22 @@ int main(void)
 					else if(serial_data[1] == '6') {
 						sensor_broadcast = 0;
 						sensor_broadcast_count = 0;
+						}				
+					else if(serial_data[1] == '7') {
+						for(int i = 0; i < 10; i++) {
+							send_char(led_values_temp[i]);
 						}
-						exit_count = 0;
+						for(int i = 0; i < 4; i++) {
+							send_char(servo_values_temp[i]);
+						}
+						send_char(vbr_values_temp[0]);
+						send_char(vbr_values_temp[1]);
+						
+						for(int i = 0; i < 2; i++) {
+							send_char(motor_vals_compressed[i]);
+						}
+					}
+					exit_count = 0;					
 				}
 				break;
 				// Returns an incrementing counter - used to measure cycle time and as a keep-alive.
@@ -508,9 +567,186 @@ void SetupHardware(void)
 	init_orb();
 	init_vbr();
 	init_tiny_comm();
-	USB_Init();
 	serial_init();
+	USB_Init();
 }
+
+/* Current function works most of the time, but needs better checking that all bytes are being received. It should look like the following:
+OK
+AT+BLEGETADDR
+ED:FA:C1:A4:F2:AD
+OK
+AT+GAPDEVNAME=HB4F2AD
+OK
+ATZ
+OK
+*/
+
+void init_BLE_name(void)
+{
+	char response[25];
+	uint16_t i = 0; 
+	uint16_t j = 0;
+	int check_ok = 0;
+	
+	// Put module in command mode
+	send_char('+');
+	send_char('+');
+	send_char('+');
+	send_char('\n');
+	
+	// Get OK back, maybe with \n (theoretically)
+	while(!received_data_available() && i < 300)
+	{
+		i++;
+		_delay_ms(1);
+	}
+	i=0;
+	while(received_data_available())
+	{
+		response[i] = receive_char();
+		// Check for OK, need to do it this way since different BLE firmware versions put it in different places of the response string
+		if(response[i] == 'O')
+			check_ok++;
+		if(response[i] == 'K' && check_ok == 1)
+			check_ok++;
+		
+		i++;
+		_delay_ms(1);
+		j=0;
+		while(!received_data_available() && j < 300)
+		{
+			j++;
+			_delay_ms(1);
+		}
+	}
+	// If we don't get an OK back, then probably no module is plugged in, so we should exit the function
+	if(check_ok == 2)
+	{
+		// send AT+BLEGETADDR
+		send_char('A');
+		send_char('T');
+		send_char('+');
+		send_char('B');
+		send_char('L');
+		send_char('E');
+		send_char('G');
+		send_char('E');
+		send_char('T');
+		send_char('A');
+		send_char('D');
+		send_char('D');
+		send_char('R');
+		send_char('\n');
+		
+		// Get back AT+BLEGETADDR\n followed by Mac Address\n Followed by "OK" maybe with a \n?
+		i=0;
+		while(!received_data_available() && i < 300)
+		{
+			i++;
+			_delay_ms(1);
+		}
+		i=0;
+		while(received_data_available() && i < 15)
+		{
+			response[i] = receive_char();
+			i++;
+			_delay_ms(1);
+			j=0;
+			while(!received_data_available() && j < 300)
+			{
+				j++;
+				_delay_ms(1);
+			}
+		}
+		i=0;
+		while(received_data_available())
+		{
+			response[i] = receive_char();
+			i++;
+			_delay_ms(1);
+			j=0;
+			while(!received_data_available() && j < 300)
+			{
+				j++;
+				_delay_ms(1);
+			}		
+		}
+
+		// send AT+GAPDEVNAME=HBXXXXX
+		send_char('A');
+		send_char('T');
+		send_char('+');
+		send_char('G');
+		send_char('A');
+		send_char('P');
+		send_char('D');
+		send_char('E');
+		send_char('V');
+		send_char('N');
+		send_char('A');
+		send_char('M');
+		send_char('E');
+		send_char('=');
+		send_char('H');
+		send_char('B');
+		send_char(response[10]);
+		send_char(response[12]);
+		send_char(response[13]);
+		send_char(response[15]);
+		send_char(response[16]);
+		send_char('\n');
+		
+		// Get back AT+GAPDEVNAME=HBXXXXX\n followed by OK and maybe a \n
+		i=0;
+		while(!received_data_available() && i < 300)
+		{
+			i++;
+			_delay_ms(1);
+		}
+		i = 0;
+		while(received_data_available())
+		{
+			response[i] = receive_char();
+			i++;
+			_delay_ms(1);
+			j=0;
+			while(!received_data_available() && j < 300)
+			{
+				j++;
+				_delay_ms(1);
+			}		
+		}
+
+		// Send ATZ (save settings and reset)
+		send_char('A');
+		send_char('T');
+		send_char('Z');
+		send_char('\n');
+		// Flush the receive buffer, most likely we only get "OK" back
+		i=0;
+		while(!received_data_available() && i < 300)
+		{
+			i++;
+			_delay_ms(1);
+		}
+		
+		i=0;
+		while(received_data_available())
+		{
+			response[i] = receive_char();
+			i++;
+			_delay_ms(1);
+			j=0;
+			while(!received_data_available() && j < 300)
+			{
+				j++;
+				_delay_ms(1);
+			}		
+			
+		}	
+	}
+}	
 
 /** Event handler for the library USB Connection event. */
 void EVENT_USB_Device_Connect(void)
