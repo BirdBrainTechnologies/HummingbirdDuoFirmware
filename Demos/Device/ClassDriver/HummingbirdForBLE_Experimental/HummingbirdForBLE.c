@@ -281,27 +281,61 @@ int main(void)
 					serial_data[1] = receive_char();
 					if(serial_data[1]=='0')
 					{
-						send_char(0x01); // Send 1 byte
+					//	send_char(0x01); // Send 1 byte
 						send_char(read_sensor(SENSOR1));
 					}
 					else if(serial_data[1]=='1')
 					{
-						send_char(0x01); // Send 1 byte
+					//	send_char(0x01); // Send 1 byte
 						send_char(read_sensor(SENSOR2));
 					}
 					else if(serial_data[1]=='2')
 					{
-						send_char(0x01); // Send 1 byte
+					//	send_char(0x01); // Send 1 byte
 						send_char(read_sensor(SENSOR3));
 					}
 					else if(serial_data[1]=='3')
 					{
-						send_char(0x01); // Send 1 byte
+					//	send_char(0x01); // Send 1 byte
 						send_char(read_sensor(SENSOR4));
 					}
 					else if(serial_data[1]=='4')
 					{
-						send_char(0x01); // Send 1 byte
+					//	send_char(0x01); // Send 1 byte
+						send_char(read_sensor(EXT_PWR));
+					}
+					exit_count = 0;
+				}
+				break;
+				// If 't', return sensor values of the selected sensor port with a delay (for micro:bit testing & optimization)
+				case 't':
+				activity_state=1;
+				while(!received_data_available() && timeout < 250) {
+					_delay_ms(2);
+					timeout++;
+				}
+				if(timeout < 250)
+				{
+					serial_data[1] = receive_char();
+					_delay_ms(6);
+					if(serial_data[1]=='0')
+					{
+						send_char(read_sensor(SENSOR1));
+					}
+					else if(serial_data[1]=='1')
+					{
+						send_char(read_sensor(SENSOR2));
+					}
+					else if(serial_data[1]=='2')
+					{
+						send_char(read_sensor(SENSOR3));
+					}
+					else if(serial_data[1]=='3')
+					{
+						send_char(read_sensor(SENSOR4));
+					}
+					else if(serial_data[1]=='4')
+					{
 						send_char(read_sensor(EXT_PWR));
 					}
 					exit_count = 0;
@@ -340,13 +374,13 @@ int main(void)
 				{
 					serial_data[1] = receive_char();
 					if(serial_data[1] == '0') {
-						send_char(0x06); // Send 6 bytes
+					//	send_char(0x06); // Send 6 bytes
 						for(int i = 0; i < 6; i++) {
 							send_char(led_values_temp[i]);
 						}
 					}
 					else if(serial_data[1] == '1') {
-						send_char(0x08); // Send 8 bytes
+					//	send_char(0x08); // Send 8 bytes
 						for(int i = 6; i < 10; i++) {
 							send_char(led_values_temp[i]);
 						}
@@ -355,7 +389,7 @@ int main(void)
 						}
 					}
 					else if(serial_data[1] == '2') {
-						send_char(0x06); // Send 6 bytes
+					//	send_char(0x06); // Send 6 bytes
 						for(int i = 0; i < 4; i++) {
 							send_char(motor_vals[i]);
 						}
@@ -363,7 +397,7 @@ int main(void)
 						send_char(vbr_values_temp[1]);
 					}
 					else if(serial_data[1] == '3') {
-						send_char(0x05); // Send 5 bytes
+					//	send_char(0x05); // Send 5 bytes
 						send_char(read_sensor(SENSOR1));
 						send_char(read_sensor(SENSOR2));
 						send_char(read_sensor(SENSOR3));
@@ -373,7 +407,7 @@ int main(void)
 					}
 					// Returns hardware/firmware version
 					else if(serial_data[1] == '4') {
-						send_char(0x05); // Send 5 bytes
+					//	send_char(0x05); // Send 5 bytes
 						// hardware version
 						send_char(0x03);
 						send_char(0x00);
@@ -392,7 +426,7 @@ int main(void)
 						sensor_broadcast_count = 0;
 						}				
 					else if(serial_data[1] == '7') {
-						send_char(0x12); // Send 18 bytes
+					//	send_char(0x12); // Send 18 bytes
 						for(int i = 0; i < 10; i++) {
 							send_char(led_values_temp[i]);
 						}
@@ -412,7 +446,7 @@ int main(void)
 				// Returns an incrementing counter - used to measure cycle time and as a keep-alive.
 				case 'z':
 					activity_state=1;
-					send_char(0x01); // Send 1 byte
+				//	send_char(0x01); // Send 1 byte
 					send_char(count);
 					count++;
 					if(count > 255) {
